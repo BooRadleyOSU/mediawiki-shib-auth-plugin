@@ -1,520 +1,246 @@
 <?php
 
 /**
- * Version 1.2.6
- *
- * Authentication Plugin for Shibboleth (http://shibboleth.internet2.edu)
- * Derived from AuthPlugin.php
- * Much of the commenting comes straight from AuthPlugin.php
- *
  * Portions Copyright 2006, 2007 Regents of the University of California.
  * Portions Copyright 2007, 2008 Steven Langenaken
+ * Portions Copyright 2016 Joseph Chagnon
+ *
  * Released under the GNU General Public License
  *
- * Documentation at http://www.mediawiki.org/wiki/Extension:Shibboleth_Authentication
- * Project IRC Channel: #sdcolleges on irc.freenode.net
- *
- * On Github: https://github.com/kir-dev/mediawiki-shibboleth-authentication
- *
  * Extension Maintainers:
- *      * Steven Langenaken - Added assertion support, more robust https checking, bugfixes for lazy auth, ShibUpdateUser hook
- *      * Balazs Varga - bugfixes, customizations
+ *   * Steven Langenaken - assertion support, robust https checking,
+ *     lazy auth bugfixes, ShibUpdateUser hook
+ *   * Balazs Varga - bugfixes, customizations
  * Extension Developers:
- *      * D.J. Capelis - Developed initial version of the extension
+ *   * D.J. Capelis - Developed initial version of the extension
  */
 
 require_once("$IP/includes/AuthPlugin.php");
 
-class ShibAuthPlugin extends AuthPlugin {
-        var $existingUser = false;
-
-        /**
-         * Check whether there exists a user account with the given name.
-         * The name will be normalized to MediaWiki's requirements, so
-         * you might need to munge it (for instance, for lowercase initial
-         * letters).
-         *
-         * @param string $username
-         * @return bool
-         * @access public
-         */
-        function userExists( $username ) {
-                return true;
-        }
-
-
-        /**
-         * Check if a username+password pair is a valid login.
-         * The name will be normalized to MediaWiki's requirements, so
-         * you might need to munge it (for instance, for lowercase initial
-         * letters).
-         *
-         * @param string $username
-         * @param string $password
-         * @return bool
-         * @access public
-         */
-        function authenticate( $username, $password) {
-                global $shib_UN;
-
-                return $username == $shib_UN;
-        }
-
-        /**
-         * Modify options in the login template.
-         *
-         * @param UserLoginTemplate $template
-         * @param String $type 'signup' or 'login'. Added in 1.16.
-         * @access public
-         */
-        function modifyUITemplate( &$template, &$type ) {
-                $template->set( 'usedomain', false );
-        }
-
-        /**
-         * Set the domain this plugin is supposed to use when authenticating.
-         *
-         * @param string $domain
-         * @access public
-         */
-        function setDomain( $domain ) {
-                $this->domain = $domain;
-        }
-
-        /**
-         * Check to see if the specific domain is a valid domain.
-         *
-         * @param string $domain
-         * @return bool
-         * @access public
-         */
-        function validDomain( $domain ) {
-                return true;
-        }
-
-        /**
-         * When a user logs in, optionally fill in preferences and such.
-         * For instance, you might pull the email address or real name from the
-         * external user database.
-         *
-         * The User object is passed by reference so it can be modified; don't
-         * forget the & on your function declaration.
-         *
-         * @param User $user
-         * @access public
-         */
-        function updateUser( &$user ) {
-                wfRunHooks('ShibUpdateUser', array($this->existingUser, &$user));
-
-                //For security, set password to a non-existant hash.
-                //if ($user->mPassword != "nologin"){
-                //        $user->mPassword = "nologin";
-                //}
-
-                $user->setOption('rememberpassword', 0);
-                $user->saveSettings();
-                return true;
-        }
-
-
-        /**
-         * Return true if the wiki should create a new local account automatically
-         * when asked to login a user who doesn't exist locally but does in the
-         * external auth database.
-         *
-         * If you don't automatically create accounts, you must still create
-         * accounts in some way. It's not possible to authenticate without
-         * a local account.
-         *
-         * This is just a question, and shouldn't perform any actions.
-         *
-         * @return bool
-         * @access public
-         */
-        function autoCreate() {
-                return true;
-        }
-
-        /**
-         * Can users change their passwords?
-         *
-         * @return bool
-         */
-        function allowPasswordChange() {
-                global $shib_pretend;
-
-                return $shib_pretend;
-
-        }
-
-        /**
-         * Set the given password in the authentication database.
-         * Return true if successful.
-         *
-         * @param User $user
-         * @param string $password
-         * @return bool
-         * @access public
-         */
-        function setPassword( $user, $password ) {
-                global $shib_pretend;
-
-                return $shib_pretend;
-        }
-
-        /**
-         * Update user information in the external authentication database.
-         * Return true if successful.
-         *
-         * @param User $user
-         * @return bool
-         * @access public
-         */
-        function updateExternalDB( $user ) {
-                //Not really, but wiki thinks we did...
-                return true;
-        }
-
-        /**
-         * Check to see if external accounts can be created.
-         * Return true if external accounts can be created.
-         * @return bool
-         * @access public
-         */
-        function canCreateAccounts() {
-                return false;
-        }
-
-        /**
-         * Add a user to the external authentication database.
-         * Return true if successful.
-         *
-         * @param $user User: only the name should be assumed valid at this point
-         * @param $password String
-         * @param $email String
-         * @param $realname String
-         * @return Boolean
-         */
-        function addUser( $user, $password, $email = '', $realname = '' ) {
-                return false;
-        }
-
-
-        /**
-         * Return true to prevent logins that don't authenticate here from being
-         * checked against the local database's password fields.
-         *
-         * This is just a question, and shouldn't perform any actions.
-         *
-         * @return bool
-         * @access public
-         */
-        function strict() {
-                return false;
-        }
-
-        /**
-         * When creating a user account, optionally fill in preferences and such.
-         * For instance, you might pull the email address or real name from the
-         * external user database.
-         *
-         * The User object is passed by reference so it can be modified; don't
-         * forget the & on your function declaration.
-         *
-         * @param User $user User object.
-         * @param $autocreate Boolean: True if user is being autocreated on login
-         */
-        function initUser( &$user, $autocreate = false ) {
-                $this->updateUser($user);
-        }
-
-        /**
-         * If you want to munge the case of an account name before the final
-         * check, now is your chance.
-         */
-        function getCanonicalName( $username ) {
-                return $username;
-        }
-}
-
-function ShibGetAuthHook() {
-        global $wgVersion;
-        if ($wgVersion >= "1.13") {
-                return 'UserLoadFromSession';
-        } else {
-                return 'AutoAuthenticate';
-        }
-}
-/*
- * End of AuthPlugin Code, beginning of hook code and auth functions
+/**
+ * @class ShibAuthPlugin
+ * The Shibboleth subclass of AuthPlugin.
  */
+class ShibAuthPlugin extends AuthPlugin {
+	var $existingUser = false;
+	var $shib_mock = false;
 
-$wgExtensionFunctions[] = 'SetupShibAuth';
-$wgExtensionCredits['other'][] = array(
-                        'name' => 'Shibboleth Authentication',
-                        'version' => '1.2.4',
-                        'author' => "Regents of the University of California, Steven Langenaken",
-                        'url' => "http://www.mediawiki.org/wiki/Extension:Shibboleth_Authentication",
-                        'description' => "Allows logging in through Shibboleth",
-                        );
-
-function SetupShibAuth()
-{
-        global $shib_UN;
-        global $wgHooks;
-        global $wgAuth, $wgUser;
-        global $wgCookieExpiration;
-
-        if($shib_UN != null){
-                $wgCookieExpiration = -3600;
-                $wgHooks[ShibGetAuthHook()][] = "Shib".ShibGetAuthHook();
-                $wgHooks['PersonalUrls'][] = 'ShibActive'; /* Disallow logout link */
-                $wgAuth = new ShibAuthPlugin();
-        } else {
-                //force logout if there is only MW session user
-                //prevent incostintent state when there's no Shib session
-                if ($wgUser != null && $wgUser->isLoggedIn()) {
-                        $wgUser->doLogout();
-                }
-
-                $wgHooks['PersonalUrls'][] = 'ShibLinkAdd';
-        }
-}
-
-/* Add login link */
-function ShibLinkAdd(&$personal_urls, $title)
-{
-        global $shib_WAYF, $shib_LoginHint, $shib_Https;
-        global $shib_WAYFStyle;
-
-        if (! isset($shib_Https))
-                $shib_Https = false;
-        if (! isset($shib_WAYFStyle))
-                $shib_WAYFStyle = 'WAYF';
-        if ($shib_WAYFStyle == 'WAYF')
-                $shib_ConsumerPrefix = 'WAYF/';
-        else
-                $shib_ConsumerPrefix = '';
-        $pageurl = $title->getLocalUrl();
-        if (! isset($shib_LoginHint))
-                $shib_LoginHint = "Login via Single Sign-on";
-
-	if ($shib_WAYFStyle == "Login") {
-		$personal_urls['SSOlogin'] = array(
-			'text' => $shib_LoginHint,
-			'href' => ($shib_Https ? 'https' :  'http') .'://' . $_SERVER['HTTP_HOST'] .
-			getShibAssertionConsumerServiceURL() . "/" . $shib_ConsumerPrefix . $shib_WAYFStyle .
-			'?target=' . (isset($_SERVER['HTTPS']) ? 'https' : 'http') .
-			'://' . $_SERVER['HTTP_HOST'] . $pageurl, );
-	}
-	elseif ($shib_WAYFStyle == "CustomLogin") {
-		$personal_urls['SSOlogin'] = array(
-			'text' => $shib_LoginHint,
-			'href' => ($shib_Https ? 'https' :  'http') .'://' . $_SERVER['HTTP_HOST'] .
-			getShibAssertionConsumerServiceURL() .
-			'?target=' . (isset($_SERVER['HTTPS']) ? 'https' : 'http') .
-			'://' . $_SERVER['HTTP_HOST'] . $pageurl, );
-	}
-	else {
-		$personal_urls['SSOlogin'] = array(
-			'text' => $shib_LoginHint,
-			'href' => ($shib_Https ? 'https' :  'http') .'://' . $_SERVER['HTTP_HOST'] .
-			getShibAssertionConsumerServiceURL() . "/" . $shib_ConsumerPrefix . $shib_WAYF .
-			'?target=' . (isset($_SERVER['HTTPS']) ? 'https' : 'http') .
-			'://' . $_SERVER['HTTP_HOST'] . $pageurl, );
-	}
-        return true;
-}
-
-/* Kill logout link */
-function ShibActive(&$personal_urls, $title)
-{
-        global $shib_LogoutHint, $shib_Https;
-        global $shib_RN;
-        global $shib_map_info;
-        global $shib_logout;
-
-        $personal_urls['logout'] = array(
-                'text' => $shib_LogoutHint,
-                'href' => ($shib_Https ? 'https' : 'http') .'://' . $_SERVER['HTTP_HOST'] .
-                (isset($shib_logout) ? $shib_logout : getShibAssertionConsumerServiceURL() . "/Logout") .
-                '?return=' . (isset($_SERVER['HTTPS']) ? 'https' : 'http') .
-                '://'. $_SERVER['HTTP_HOST']. "/index.php?title=Special:UserLogout&amp;returnto=" .
-                $title->getPartialURL());
-
-        if ($shib_RN && $shib_map_info)
-                $personal_urls['userpage']['text'] = $shib_RN;
-
-        return true;
-}
-
-function getShibAssertionConsumerServiceURL() {
-        global $shib_AssertionConsumerServiceURL;
-
-        if (! isset($shib_AssertionConsumerServiceURL) || $shib_AssertionConsumerServiceURL == '') {
-                $shib_AssertionConsumerServiceURL = "/Shibboleth.sso";
-        }
-
-        return $shib_AssertionConsumerServiceURL;
-}
-
-function ShibAutoAuthenticate(&$user) {
-        ShibUserLoadFromSession($user, true);
-}
-/* Tries to be magical about when to log in users and when not to. */
-function ShibUserLoadFromSession($user, &$result)
-{
-        global $IP;
-        global $wgContLang;
-        global $wgAuth;
-        global $shib_UN;
-        global $wgHooks;
-        global $shib_map_info;
-        global $shib_map_info_existing;
-        global $shib_pretend;
-	     global $shib_groups;
-
-        //MW needs usernames in capital!
-        $shib_UN = Title::makeTitleSafe( NS_USER, $shib_UN);
-        $shib_UN = $shib_UN->getText();
-
-        ShibKillAA();
-
-        //For versions of mediawiki which enjoy calling AutoAuth with null users
-        if ($user === null) {
-                $user = User::loadFromSession();
-        }
-
-        //They already with us?  If so, nix this function, we're good.
-        if($user->isLoggedIn())
-        {
-                ShibBringBackAA();
-                return true;
-        }
-
-        //Is the user already in the database?
-        if (User::idFromName($shib_UN) != null && User::idFromName($shib_UN) != 0)
-        {
-                $user = User::newFromName($shib_UN);
-                $user->load();
-                $wgAuth->existingUser = true;
-                $wgAuth->updateUser($user); //Make sure password is nologin
-                wfSetupSession();
-                $user->setCookies();
-		          ShibAddGroups($user);
-                return true;
-        }
-
-        //Place the hook back (Not strictly necessarily MW Ver >= 1.9)
-        ShibBringBackAA();
-
-        //Okay, kick this up a notch then...
-        $user->setName($wgContLang->ucfirst($shib_UN));
-
-        /*
-         * Since we only get called when someone should be logged in, if they
-         * aren't let's make that happen.  Oddly enough the way MW does all
-         * this is simply to use a loginForm class that pretty much does
-         * most of what you need.  Creating a loginform is a very very small
-         * part of this object.
-         */
-        require_once("$IP/includes/specials/SpecialUserlogin.php");
-
-        //This section contains a silly hack for MW
-        global $wgLang;
-        global $wgContLang;
-        global $wgRequest;
-        $wgLangUnset = false;
-
-        if(!isset($wgLang))
-        {
-                $wgLang = $wgContLang;
-                $wgLangUnset = true;
-        }
-
-        ShibKillAA();
-
-        //This creates our form that'll do black magic
-        $lf = new LoginForm($wgRequest);
-
-        //Place the hook back (Not strictly necessarily MW Ver >= 1.9)
-        ShibBringBackAA();
-
-        //And now we clean up our hack
-        if($wgLangUnset == true)
-        {
-                unset($wgLang);
-                unset($wgLangUnset);
-        }
-
-        //The mediawiki developers entirely broke use of this the
-        //straightforward way in 1.9, so now we just lie...
-        $shib_pretend = true;
-
-        //Now we _do_ the black magic
-        //$lf->mRemember = false;
-        $user->loadDefaults($shib_UN);
-        $lf->initUser($user, true);
-
-        //Stop pretending now
-        $shib_pretend = false;
-
-        //Finish it off
-        $user->saveSettings();
-        wfSetupSession();
-        $user->setCookies();
-	     ShibAddGroups($user);
-        return true;
-}
-function ShibAddGroups($user) {
-	global $shib_groups;
-	global $shib_group_prefix;
-	global $shib_group_delete;
-
-	if (isset($shib_group_delete) && $shib_group_delete) {
-		$oldGroups = $user->getGroups();
-        	foreach ($oldGroups as $group) {
-                	$user->removeGroup($group);
-        	}
+	/**
+	 * Check whether there exists a user account with the given name.
+	 * The name will be normalized to MediaWiki's requirements, so
+	 * you might need to munge it (for instance, for lowercase initial
+	 * letters).
+	 *
+	 * @param string $username The username to check.
+	 * @return bool Whether `$username` exists.
+	 * @public
+	 */
+	function userExists($username) {
+		return true;
 	}
 
-	if (isset($shib_groups)) {
-		foreach (explode(';', $shib_groups) as $group) {
-			if (isset($shib_group_prefix) && !empty($shib_group_prefix)) {
-				$vals = explode(":", $group);
-				if ($vals[0] == "wiki") {
-					$user->addGroup($vals[1]);
-				}
-			}
-			else {
-				$user->addGroup($group);
-			}
-		}
+	/**
+	 * Check if a username+password pair is a valid login.
+	 * The name will be normalized to MediaWiki's requirements, so
+	 * you might need to munge it (for instance, for lowercase initial
+	 * letters).
+	 *
+	 * @param string $username The username to authenticate against.
+	 * @param string $password The given password. Unused.
+	 * @return bool Whether the authenticaiton is siccessful.
+	 * @public
+	 */
+	function authenticate($username, $password) {
+		global $shib_UN;
+
+		return $username == $shib_UN;
 	}
-}
-function ShibKillAA()
-{
-        global $wgHooks;
-#       global $wgAuth; //looks unuseful here
 
-        //Temporarily kill The AutoAuth Hook to prevent recursion
-        foreach ($wgHooks[ShibGetAuthHook()] as $key => $value)
-        {
-                if($value == "Shib".ShibGetAuthHook())
-                        $wgHooks[ShibGetAuthHook()][$key] = 'ShibBringBackAA';
-        }
-}
-/* Puts the auto-auth hook back into the hooks array */
-function ShibBringBackAA()
-{
-        global $wgHooks;
-#       global $wgAuth; //looks unuseful here
+	/**
+	 * Modify options in the login template.
+	 *
+	 * @param UserLoginTemplate $template The login template to modify.
+	 * @param string $type Either 'signup' or 'login'.
+	 * @public
+	 */
+	function modifyUITemplate(&$template, &$type) {
+		$template->set('usedomain', false);
+	}
 
-        foreach ($wgHooks[ShibGetAuthHook()] as $key => $value)
-        {
-                if($value == 'ShibBringBackAA')
-                        $wgHooks[ShibGetAuthHook()][$key] = "Shib".ShibGetAuthHook();
-        }
-        return true;
+	/**
+	 * Set the domain this plugin is supposed to use when authenticating.
+	 *
+	 * @param string $domain The desired authentication domain.
+	 * @public
+	 */
+	function setDomain($domain) {
+		$this->domain = $domain;
+	}
+
+	/**
+	 * Check to see if the specific domain is a valid domain. Not meaningful
+	 * with Shibboleth.
+	 *
+	 * @param string $domain The domain to check.
+	 * @return bool True iff the domain is valid.
+	 * @public
+	 */
+	function validDomain($domain) {
+		return true;
+	}
+
+	/**
+	 * When a user logs in, optionally fill in preferences and such.
+	 * For instance, you might pull the email address or real name from the
+	 * external user database.
+	 *
+	 * The User object is passed by reference so it can be modified; don't
+	 * forget the & on your function declaration.
+	 *
+	 * @param User $user The user object.
+	 * @public
+	 */
+	function updateUser(&$user) {
+		wfRunHooks('ShibUpdateUser', array($this->existingUser, &$user));
+
+		$user->setOption('rememberpassword', 0);
+		$user->saveSettings();
+		return true;
+	}
+
+	/**
+	 * Return true if the wiki should create a new local account automatically
+	 * when asked to login a user who doesn't exist locally but does in the
+	 * external auth database.
+	 *
+	 * If you don't automatically create accounts, you must still create
+	 * accounts in some way. It's not possible to authenticate without
+	 * a local account.
+	 *
+	 * This is just a question, and shouldn't perform any actions.
+	 *
+	 * @return bool Whether MW should automatically create users.
+	 * @public
+	 */
+	function autoCreate() {
+		return true;
+	}
+
+	/**
+	 * Start pretending to allow password changes. This feature is needed for
+	 * the AutoAuth hook.
+	 */
+	function enableMockPasswords() {
+		$this->shib_mock = true;
+	}
+
+	/**
+	 * Stop pretending to allow password changes. This feature is needed for the
+	 * AutoAuth hook.
+	 */
+	function disableMockPasswords() {
+		$this->shib_mock = false;
+	}
+
+	/**
+	 * Return true if the authentication backend supports password changes. The
+	 * global variable `$shib_mock` can be set in order to make this plugin
+	 * pretend that password changes are possible.
+	 *
+	 * @return bool
+	 */
+	function allowPasswordChange() {
+		return $this->shib_mock;
+	}
+
+	/**
+	 * Set the given password in the authentication database.
+	 * Return true if successful.
+	 * The global variable `$shib_mock` can be set in order to make this
+	 * plugin pretend that password changes are possible.
+	 *
+	 * @param User $user The user to modify.
+	 * @param string $password The new password.
+	 * @return bool True iff the password change was successful.
+	 * @public
+	 */
+	function setPassword($user, $password) {
+		return $this->shib_mock;
+	}
+
+	/**
+	 * Update user information in the external authentication database.
+	 * Return true if successful. Not meaningful with Shibboleth.
+	 *
+	 * @param User $user The user to modify.
+	 * @return bool True iff the update was successful.
+	 * @public
+	 */
+	function updateExternalDB($user) {
+		return true;
+	}
+
+	/**
+	 * Check to see if external accounts can be created.
+	 * Return true if external accounts can be created.
+	 * This function is not meaningful with Shibboleth.
+	 *
+	 * @return bool True when external accounts can be created.
+	 * @public
+	 */
+	function canCreateAccounts() {
+		return false;
+	}
+
+	/**
+	 * Add a user to the external authentication database.
+	 * Return true if successful.
+	 * This function is not meaningful with Shibboleth.
+	 *
+	 * @param User $user The user to add.
+	 * @param string $password The user's password.
+	 * @param string $email  The user's email.
+	 * @param string $realname The user's real name.
+	 * @return bool True iff the user add was successful.
+	 */
+	function addUser($user, $password, $email, $realname) {
+		return false;
+	}
+
+	/**
+	 * Return true to prevent logins that don't authenticate here from being
+	 * checked against the local database's password fields.
+	 *
+	 * This is just a question, and shouldn't perform any actions.
+	 *
+	 * @return bool True if authenticaion should not fall back to factory.
+	 * @public
+	 */
+	function strict() {
+		return false;
+	}
+
+	/**
+	 * When creating a user account, optionally fill in preferences and such.
+	 * For instance, you might pull the email address or real name from the
+	 * external user database.
+	 *
+	 * The User object is passed by reference so it can be modified; don't
+	 * forget the & on your function declaration.
+	 *
+	 * @param User $user User object.
+	 * @param bool $autocreate True if user is being autocreated on login.
+	 */
+	function initUser(&$user, $autocreate) {
+		$this->updateUser($user);
+	}
+
+	/**
+	 * Transforms the given uesrname into its canonical form.
+	 * @param string $username The username to canonicalize.
+	 */
+	function getCanonicalName($username) {
+		return $username;
+	}
 }
 ?>
