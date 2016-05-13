@@ -1,0 +1,20 @@
+<IfModule mod_alias.c>
+  Alias /wiki /var/www/html/mediawiki-1.23.13/
+
+  <Directory /var/www/html/mediawiki-1.23.13/>
+    Options Indexes MultiViews FollowSymLinks
+    Order deny,allow
+    Allow from all
+  </Directory>
+
+  <Location /wiki>
+    AuthType shibboleth
+    require shibboleth
+  </Location>
+
+  <Location /wiki/Login.php>
+    AuthType shibboleth
+    ShibRequestSetting requireSession true
+    require shib-attr entitlement urn:mace:example.it:wiki
+  </Location>
+</IfModule>
